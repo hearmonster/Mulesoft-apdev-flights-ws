@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:american-flights-api="http://www.mulesoft.org/schema/mule/american-flights-api" xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns="http://www.mulesoft.org/schema/mule/core"
-	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns:american-flights-api="http://www.mulesoft.org/schema/mule/american-flights-api"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
-http://www.mulesoft.org/schema/mule/american-flights-api http://www.mulesoft.org/schema/mule/american-flights-api/current/mule-american-flights-api.xsd">
+http://www.mulesoft.org/schema/mule/american-flights-api http://www.mulesoft.org/schema/mule/american-flights-api/current/mule-american-flights-api.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
 	<sub-flow name="setCode" doc:id="232225e7-fa9b-4962-9563-354f4bfc9d47" >
 		<set-variable value="#[message.attributes.queryParams.code default 'SFO']" doc:name="Set Airport Code" doc:id="8e902e3c-0346-42e9-864d-30c5f60a2384" variableName="code"/>
 	</sub-flow>
@@ -23,5 +25,31 @@ http://www.mulesoft.org/schema/mule/american-flights-api http://www.mulesoft.org
 	"dest" : vars.code
 }]]]></http:uri-params>
 		</http:request>
+	</flow>
+	<flow name="togetDeltaFlights" doc:id="d63ad654-d112-47ce-9d77-3add24c751a1" >
+		<http:listener doc:name="GET /delta" doc:id="6c0f3750-34cc-4d33-98b8-76fbe0ced4f3" config-ref="HTTP_Listener_GLOBAL_config" path="/delta" allowedMethods="GET"/>
+		<flow-ref doc:name="Set Airport Code" doc:id="ba4a9638-23fe-4667-aa61-3c46804b59e6" name="setCode"/>
+		<ee:transform doc:name="Pass Dest Code" doc:id="894ff23e-c92a-4f3b-b5b9-d3ad00ffdf30" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://soap.training.mulesoft.com/
+---
+{
+	ns0#findFlight: {
+		destination: vars.code
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume operation="findFlight" doc:name="Get Flights" doc:id="aa897ac9-ab0f-40ab-9a63-79b9730b419f" config-ref="Web_Service_Consumer_GLOBAL_Config"/>
+		<ee:transform doc:name="SOAP to JSON" doc:id="40de4209-fb65-4d8f-b626-fab6a97c7813" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
 	</flow>
 </mule>
